@@ -22,9 +22,10 @@ Resources:
   ServiceStack:
     Type: AWS::Serverless::Application
     Properties:
-      Location: service.yaml
+      Location: blue-green-service.yaml
       Parameters:
         VpcId: !GetAtt VpcStack.Outputs.VpcId
         PublicSubnetIds: !GetAtt VpcStack.Outputs.PublicSubnetIds
         ClusterName: !GetAtt ClusterStack.Outputs.ClusterName
         ECSTaskExecutionRole: !GetAtt ClusterStack.Outputs.ECSTaskExecutionRole
+        # ImageUrl: public.ecr.aws/docker/library/httpd:latest
