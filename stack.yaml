@@ -22,7 +22,8 @@ Resources:
   ServiceStack:
     Type: AWS::Serverless::Application
     Properties:
-      Location: blue-green-service.yaml
+      Location: service.yaml
+      # Location: blue-green-service.yaml
       Parameters:
         VpcId: !GetAtt VpcStack.Outputs.VpcId
         PublicSubnetIds: !GetAtt VpcStack.Outputs.PublicSubnetIds
