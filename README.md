@@ -16,9 +16,11 @@ In ECS, a deployment usually means a new version of a container used by a servic
 
 ## How to set it up in an existing ECS service
 
+### Step 1: set up an existing ECS service
+
 Let's assume you've got an existing service in ECS that you want to use with the blue-green deployment strategy. For this example, we've got a [simple ECS Fargate cluster](https://containersonaws.com/pattern/public-facing-web-ecs-fargate-cloudformation) deployed in a [VPC's public subnet](https://containersonaws.com/pattern/low-cost-vpc-amazon-ecs-cluster). The cluster is running a container with nginx - think of it as the web frontend for an application. The cloud formation scripts to set this up are in [this repository](https://github.com/shinesolutions/ecs-blue-green-demo), and you can deploy them easily with [AWS' Serverless Application Model CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html). Checkout the repo, install and setup SAM, authenticate with AWS and then you can deploy the basic stack like this:
 
-```bash
+```shell
 sam deploy --template-file stack.yaml --stack-name blue-green-demo
 ```
 
@@ -34,7 +36,7 @@ INSERT NGINX PAGE SCREENSHOT HERE
 
 So for this stack, if we deploy an updated container ECS will stop the currently running service before starting up the new one. This will mean an outage while the new service starts up. You can test this scenario out yourself by editing [stack.yaml](stack.yaml). Uncomment the last line, so that the parameters for the service look like this:
 
-```yaml:startline=27
+```yaml startline=27
       Parameters:
         VpcId: !GetAtt VpcStack.Outputs.VpcId
         PublicSubnetIds: !GetAtt VpcStack.Outputs.PublicSubnetIds
