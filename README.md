@@ -261,6 +261,13 @@ This time you'll notice that the deployment doesn't finish when all the resource
 
 Refreshing the load balancer URL from earlier, you should see the Apache welcome page (the "blue" service) while the green is being deployed. However, because this first time requires a few extra resources to be set up (the IAM role, target groups, ALB rules) there will be a period where you will see that 503 error. Once the green service responds to a health check request, ECS will move the traffic to the green and refreshing the page will show you the nginx welcome page. For a proper test of the blue-green strategry, where you don't see the 503 error, try re-deploying (just uncomment that ImageUrl to re-deploy the Apache version). You should not have a period in between which returns a 503 error.
 
+Don't forget to shut down all the resources when you're done testing.
+
+```shell
+sam delete
+```
+
+
 ## Deployment hooks and how to do something a bit more complicated
 
 The strategy above is the simplest blue-green deployment that can be set up in ECS. What if you want to have a testing period where access to the green service is only available to testers, and the blue continues to serve traffic until the testers give the thumbs-up? Or what if you want a gradual movement of traffic from blue to green instead of an all-in-one transfer? For these kinds of scenarios, ECS provides deployment hooks and two other deployment strategies.
