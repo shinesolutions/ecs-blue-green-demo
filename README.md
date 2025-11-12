@@ -67,11 +67,11 @@ sam deploy --template-file stack.yaml --stack-name blue-green-demo
 
 Once that's finished, in AWS console, you can navigate to the Application Load Balancer that was created as part of the stack. There you can find the public DNS name of our web frontend.
 
-INSERT AWS CONSOLE SCREENSHOT HERE
+![Screenshot of the AWS Console, showing the application load balancer just created. Circled in red is the DNS name.](alb-dns-name.png)
 
 Paste that into your browser, and you should see the nginx welcome page.
 
-INSERT NGINX PAGE SCREENSHOT HERE
+![Screenshot of the nginx web server's default welcome page](nginx-welcome.png)
 
 So for this stack, if we deploy an updated container ECS will stop the currently running service before starting up the new one. This will mean an outage while the new service starts up. You can test this scenario out yourself by editing [stack.yaml](stack.yaml). Uncomment the last line, so that the parameters for the service look like this:
 
@@ -84,15 +84,15 @@ So for this stack, if we deploy an updated container ECS will stop the currently
         ImageUrl: public.ecr.aws/docker/library/httpd:latest
 ```
 
-This will change the container image used for the service from nginx to Apache HTTPD. Deploy this using the `sam deploy` command you used before. Refreshing the ALB URL from earlier during the deployment you should see a HTTP 503 error page that says "Service Unavailable" while the nginx version is stopped and the Apache version is being started.
+This will change the container image used for the service from nginx to Apache HTTPD. Deploy this using the `sam deploy` command you used before. Refreshing the ALB URL from earlier during the deployment you might see a HTTP 503 error page that says "Service Unavailable" while the nginx version is stopped and the Apache version is being started - but you'll have to be pretty quick, as both services stop and start quite quickly.
 
-INSERT 503 ERROR PAGE SCREENSHOT HERE
+![503 Service Unavailable screenshot](503-error.png)
 
 Once the new version of the service has started, you should see the Apache welcome page.
 
-INSERT APACHE PAGE SCREENSHOT HERE
+![Apache HTTPD welcome page](apache-welcome.png)
 
-That 503 error is what we're going to avoid by using a blue-green strategy.
+That 503 error (that you might not even have managed to see) is what we're going to avoid by using a blue-green strategy.
 
 ### Step 2: Add in the things we need to support blue-green deployments
 
@@ -249,13 +249,19 @@ We've replaced the [service yaml](service.yaml) with the [blue-green version](bl
 sam deploy --template-file stack.yaml --stack-name blue-green-demo
 ```
 
-This time you'll notice that the deployment doesn't finish when all the resources are created. The command will wait for the 5 minutes "bake time" we configured. During this time you can rollback in the AWS console. Refreshing the load balancer URL from earlier, you should see the Apache welcome page (the "blue" service) while the green is being deployed. Once the green service responds to a health check request, ECS will move the traffic to the green and refreshing the page will show you the nginx welcome page. You should not have a period in between which returns a 503 error.
+This time you'll notice that the deployment doesn't finish when all the resources are created. The command will wait for the 5 minutes "bake time" we configured. During this time you can rollback in the AWS console. 
+
+![AWS Console showing an ongoing deployment](ongoing-deployment.png)
+
+Refreshing the load balancer URL from earlier, you should see the Apache welcome page (the "blue" service) while the green is being deployed. However, because this first time requires a few extra resources to be set up (the IAM role, target groups, ALB rules) there will be a period where you will see that 503 error. Once the green service responds to a health check request, ECS will move the traffic to the green and refreshing the page will show you the nginx welcome page. For a proper test of the blue-green strategry, where you don't see the 503 error, try re-deploying (just uncomment that ImageUrl to re-deploy the Apache version). You should not have a period in between which returns a 503 error.
 
 ## Deployment hooks and how to do something a bit more complicated
 
-The strategy above is the simplest blue-green deployment that can be set up in ECS. What if you want to have a testing period where access to the green service is only available to testers, and the blue continues to serve traffic until the testers give the thumbs-up? Or what if you want a gradual movement of traffic from blue to green instead of an all-in-one transfer? For these kinds of scenarios, ECS provides deployment hooks.
+The strategy above is the simplest blue-green deployment that can be set up in ECS. What if you want to have a testing period where access to the green service is only available to testers, and the blue continues to serve traffic until the testers give the thumbs-up? Or what if you want a gradual movement of traffic from blue to green instead of an all-in-one transfer? For these kinds of scenarios, ECS provides deployment hooks and two other deployment strategies.
 
 At [different stages of the blue-green deployment](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/blue-green-deployment-how-it-works.html#blue-green-deployment-stages), ECS can call out to lambda functions. The deployment will pause until those lambdas return a response indicating that either everything is fine, or that a rollback should occur. So for the testing scenario above, you could add a lambda at the POST_TEST_TRAFFIC_SHIFT step - this is when the green service is running, but the blue service is still handling 100% of the production traffic. The lambda could wait for a signal from the testing team (a file placed in a S3 bucket, a message on a queue), not allowing the deployment to proceed until that signal was received. For a complete example of how to set this up, AWS have provided a [sample architecture](https://github.com/aws-samples/sample-amazon-ecs-blue-green-deployment-patterns/blob/main/ecs-bluegreen-lifecycle-hooks/README.md).
+
+Amazon have also [recently announced support for linear and canary deployment](https://aws.amazon.com/about-aws/whats-new/2025/10/amazon-ecs-built-in-linear-canary-deployments/) strategies. These are variants of blue-green, where the traffic is shifted gradually from blue to green in the case of [linear](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-linear.html), or a proportion of traffic will be sent to the green for a period of time in the case of [canary deployments](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/canary-deployment.html) (the idea being similar to the [canary-in-the-coalmine](https://www.smithsonianmag.com/smart-news/what-happened-canary-coal-mine-story-how-real-life-animal-helper-became-just-metaphor-180961570/) testing for gas leaks). The setup and resources needed for these strategies is very similar to blue-green, so setting these up should be reasonably straightforward if you've followed what we've done so far.
 
 ## References
 
@@ -263,4 +269,6 @@ At [different stages of the blue-green deployment](https://docs.aws.amazon.com/A
 * [Simple VPC (public subnets only) CF template](https://containersonaws.com/pattern/low-cost-vpc-amazon-ecs-cluster)
 * [SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
 * [Sample stack with manual approval step and gradual traffic movement from blue to green](https://github.com/aws-samples/sample-amazon-ecs-blue-green-deployment-patterns/blob/main/ecs-bluegreen-lifecycle-hooks/README.md)
+* [Linear deployment strategy in ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-linear.html)
+* [Canary deployment strategy in ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/canary-deployment.html)
 
