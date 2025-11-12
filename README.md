@@ -21,7 +21,10 @@ architecture-beta
 
     internet_i:B -- T:alb_i
     alb_i:B -- T:blue_i
+```
 
+```mermaid
+architecture-beta
     group deploy(cloud)[During Deployment]
     service internet_d(internet)[Internet] in deploy
     service alb_d(server)[ALB] in deploy
@@ -33,7 +36,10 @@ architecture-beta
     internet_d:B -- T:alb_d
     alb_d:B -- T:blue_d
     alb_d:B -- T:green_d
+```
 
+```mermaid
+architecture-beta
     group final(cloud)[Final]
 
     service internet_f(internet)[Internet] in final
