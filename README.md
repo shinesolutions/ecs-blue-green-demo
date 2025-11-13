@@ -1,6 +1,6 @@
 # Blue/Green ECS Deployments
 
-Amazon announced earlier this year that [ECS now supports Blue/Green deployments](https://aws.amazon.com/blogs/aws/accelerate-safe-software-releases-with-new-built-in-blue-green-deployments-in-amazon-ecs/) natively. Why is this a big deal?
+Amazon announced earlier this year that [ECS now supports Blue/Green deployments](https://aws.amazon.com/blogs/aws/accelerate-safe-software-releases-with-new-built-in-blue-green-deployments-in-amazon-ecs/) natively. In this article, we explain what a blue-green deployment means, and how to modify an existing ECS service to support blue-green deployments using CloudFormation.
 
 ## What is Blue/Green Deployment?
 
@@ -61,6 +61,8 @@ In ECS, a deployment usually means a new version of a container used by a servic
 
 ## How to set it up in an existing ECS service
 
+If you're reading this article, chances are you've already got a service running in an ECS cluster. Most likely, you deploy updates to that service using some form of infrastructure-as-code - CloudFormation, or Terraform perhaps. If you don't use IaC, then this AWS blog shows [how to set up blue-green deployments using the AWS web console](https://aws.amazon.com/blogs/aws/accelerate-safe-software-releases-with-new-built-in-blue-green-deployments-in-amazon-ecs/) and is probably more useful to you. If CloudFormation is your IaC tool, then read on. The resources required should be directly translatable to Terraform as well, but that is left as an exercise for the reader.
+
 ### Step 1: set up an existing ECS service
 
 Let's assume you've got an existing service in ECS that you want to use with the blue-green deployment strategy. For this example, we've got a [simple ECS Fargate cluster](https://containersonaws.com/pattern/public-facing-web-ecs-fargate-cloudformation) deployed in a [VPC's public subnet](https://containersonaws.com/pattern/low-cost-vpc-amazon-ecs-cluster). The cluster is running a container with nginx - think of it as the web frontend for an application. The cloud formation scripts to set this up are in [this repository](https://github.com/shinesolutions/ecs-blue-green-demo), and you can deploy them easily with [AWS' Serverless Application Model CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html). Checkout the repo, install and setup SAM, authenticate with AWS and then you can deploy the basic stack like this:
@@ -69,7 +71,7 @@ Let's assume you've got an existing service in ECS that you want to use with the
 sam deploy --template-file stack.yaml --stack-name blue-green-demo
 ```
 
-(Note: You can call your stack whatever you like, you don't have to use blue-green-demo).
+(Note: You can call your stack whatever you like, you don't have to use blue-green-demo. You can also use the AWS CLI to create the cloud formation stack directly, you don't have to use SAM).
 
 Once that's finished, in AWS console, you can navigate to the Application Load Balancer that was created as part of the stack. There you can find the public DNS name of our web frontend.
 
@@ -79,7 +81,7 @@ Paste that into your browser, and you should see the nginx welcome page.
 
 ![Screenshot of the nginx web server's default welcome page](nginx-welcome.png)
 
-So for this stack, if we deploy an updated container ECS will stop the currently running service before starting up the new one. This will mean an outage while the new service starts up. You can test this scenario out yourself by editing [stack.yaml](stack.yaml). Uncomment the last line, so that the parameters for the service look like this:
+For this stack, if we deploy an updated container ECS will stop the currently running service before starting up the new one. This will mean an outage while the new service starts up. You can test this scenario out yourself by editing [stack.yaml](stack.yaml). Uncomment the last line, so that the parameters for the service look like this:
 
 ```yaml startline=27
       Parameters:
@@ -267,7 +269,6 @@ Don't forget to shut down all the resources when you're done testing.
 sam delete
 ```
 
-
 ## Deployment hooks and how to do something a bit more complicated
 
 The strategy above is the simplest blue-green deployment that can be set up in ECS. What if you want to have a testing period where access to the green service is only available to testers, and the blue continues to serve traffic until the testers give the thumbs-up? Or what if you want a gradual movement of traffic from blue to green instead of an all-in-one transfer? For these kinds of scenarios, ECS provides deployment hooks and two other deployment strategies.
@@ -275,6 +276,10 @@ The strategy above is the simplest blue-green deployment that can be set up in E
 At [different stages of the blue-green deployment](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/blue-green-deployment-how-it-works.html#blue-green-deployment-stages), ECS can call out to lambda functions. The deployment will pause until those lambdas return a response indicating that either everything is fine, or that a rollback should occur. So for the testing scenario above, you could add a lambda at the POST_TEST_TRAFFIC_SHIFT step - this is when the green service is running, but the blue service is still handling 100% of the production traffic. The lambda could wait for a signal from the testing team (a file placed in a S3 bucket, a message on a queue), not allowing the deployment to proceed until that signal was received. For a complete example of how to set this up, AWS have provided a [sample architecture](https://github.com/aws-samples/sample-amazon-ecs-blue-green-deployment-patterns/blob/main/ecs-bluegreen-lifecycle-hooks/README.md).
 
 Amazon have also [recently announced support for linear and canary deployment](https://aws.amazon.com/about-aws/whats-new/2025/10/amazon-ecs-built-in-linear-canary-deployments/) strategies. These are variants of blue-green, where the traffic is shifted gradually from blue to green in the case of [linear](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-linear.html), or a proportion of traffic will be sent to the green for a period of time in the case of [canary deployments](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/canary-deployment.html) (the idea being similar to the [canary-in-the-coalmine](https://www.smithsonianmag.com/smart-news/what-happened-canary-coal-mine-story-how-real-life-animal-helper-became-just-metaphor-180961570/) testing for gas leaks). The setup and resources needed for these strategies is very similar to blue-green, so setting these up should be reasonably straightforward if you've followed what we've done so far.
+
+## Conclusion
+
+AWS have made it possible for you to reduce downtime in your ECS services, and use some more sophisticated deployment patterns, without having to use an external service such as CodeDeploy, or a more complicated kubernetes setup. Just remember that if you're adding it to an existing service your initial deployment will still involve a small amount of downtime as the extra resources are created, but after that you should be rock solid. The CloudFormation templates in this article should help you get started, and the resources below can help you find more detailed information. Good luck.
 
 ## References
 
